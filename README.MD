@@ -4,10 +4,12 @@ This is a project to make a simple fader bank to control stuff on your pc :D
 
 <strong>Contents</strong>
 <!-- TOC -->
+- [Overview](#overview)
 - [Hardware](#hardware)
     - [Setup](#setup)
 - [Software](#software)
 - [Images](#images)
+    - [My current setup](#my-current-setup)
 <!-- /TOC -->
 
 ## Overview
