@@ -1,0 +1,6 @@
+pyserial
+mido
+python-rtmidi
+keyboard
+matplotlib
+PyQt5
