@@ -11,27 +11,38 @@ const int pins[NUMOFPINS] = { A0, A1, A2, A3 };
 int pinValues[NUMOFPINS] = { 0, 0, 0, 0 };
 unsigned long lastSent[NUMOFPINS] = { 0, 0, 0, 0 };
 
-int top_value[NUMOFPINS] = {
-  0,
-  0,
-  0,
-  0
-};
-
-int bot_value[NUMOFPINS] = {
-  0,
-  0,
-  0,
-  0
-};
-
 void setup() {
   Serial.begin(115200);
-  Serial.setTimeout(250);
+  // Wait one second before starting starting loop();
+  Serial.setTimeout(100);
+  for (int i = 0; i < 10; i++) {
+    Serial.print("Reading for \"CALIBRATE\"... try ");
+    Serial.print(i);
+    Serial.print("...\n");
+    if (Serial.readString() == "CALIBRATE") {
+      calibrate();
+      // Wait indefinitely until reset
+      for(;;) {
+        if(Serial.readString() == "RESET") {
+          reset();
+        }
+      }
+    }
+  }
+  // Poll every 1ms
+  Serial.setTimeout(1);
+}
+
+void calibrate() {
+  int top_value[NUMOFPINS] = { 0, 0, 0, 0 };
+  int bot_value[NUMOFPINS] = { 0, 0, 0, 0 };
+
+  // Tell the computer we're ready
+  Serial.println("READY4CAL");
 
   // Begin Calibrate
-  Serial.println("Send READY when all sliders are in the BOTTOM position...");
   
+  Serial.println("WAIT4READY");
   for(;;) {
     if(Serial.readString() == "READY") {
       break;
@@ -40,14 +51,9 @@ void setup() {
   
   for (int i = 0; i < NUMOFPINS; i++) {
     bot_value[i] = analogRead(pins[i]);
-    Serial.print(i);
-    Serial.print(" bottom = ");
-    Serial.print(bot_value[i]);
-    Serial.print("\n");
   }
 
-  Serial.println("Send READY when all sliders are in the TOP position...");
-  
+  Serial.println("WAIT4READY");
   for(;;) {
     if(Serial.readString() == "READY") {
       break;
@@ -56,28 +62,25 @@ void setup() {
 
   for (int i = 0; i < NUMOFPINS; i++) {
     top_value[i] = analogRead(pins[i]);
+  }
+
+  // Send values to computer
+  for (int i = 0; i < NUMOFPINS; i++) {
     Serial.print(i);
-    Serial.print(" top = ");
+    Serial.print(",");
+    Serial.print(bot_value[i]);
+    Serial.print(",");
     Serial.print(top_value[i]);
     Serial.print("\n");
   }
-  Serial.print("Calibration data:");
-  for (int i = 0; i < NUMOFPINS; i++) {
-    Serial.print("  Slider ");
-    Serial.print(i);
-    Serial.print(": bot=");
-    Serial.print(bot_value[i]);
-    Serial.print(" top=");
-    Serial.print(top_value[i]);
-  }
-  Serial.print("\n");
-  Serial.setTimeout(1);
+  Serial.println("DONEWCAL");
 }
 
 void loop() {
   if(Serial.readString() == "RESET") {
     reset();
   }
+  
   for (int i = 0; i < NUMOFPINS; i++) {
 
     int newValue = analogRead(pins[i]);
@@ -93,10 +96,6 @@ void loop() {
     Serial.print(i);
     Serial.print(",");
     Serial.print(newValue);
-    Serial.print(",");
-    Serial.print(bot_value[i]);
-    Serial.print(",");
-    Serial.print(top_value[i]);
     Serial.print("\n");
   }
 }

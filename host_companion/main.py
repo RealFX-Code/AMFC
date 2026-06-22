@@ -1,9 +1,10 @@
 import serial
 import mido
 import mido.backends.rtmidi
+import json
 
 # You'll need to change this to your arduino's port.
-SERIAL_PORT = '/dev/ttyUSB0'
+SERIAL_PORT = '/dev/ttyUSB5'
 BAUD_RATE = 115200
 
 CC_MAP = {
@@ -26,18 +27,12 @@ def ema(index, raw):
     ema_values[index] = smoothed
     return int(smoothed)
 
-#
-#  HEY YOU!!! HEY! OVER HERE!
-#    Use the commented out scale function if your sliders do anything except 0-1024!!!!!!
-#
-
-#def scale(value, in_min, in_max, out_min=0, out_max=127):
-#    scaled = (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
-#    return max(out_min, min(out_max, int(scaled)))  # Clamp to 0-127
-
-
 def scale(value, in_min, in_max, out_min=0, out_max=127):
-    return value >> 3
+    if (in_max <= 1024):
+        return value >> 3
+    
+    scaled = (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+    return max(out_min, min(out_max, int(scaled)))  # Clamp to 0-127
 
 def on_fader_change(index, value, bot, top):
     midi_value = scale(value, in_min=bot, in_max=top)
@@ -62,18 +57,15 @@ midi_out = mido.open_output('Fader Controller', virtual=True)
 
 def main():
     last_values = {}
+    values = []
 
     # This makes the arduino jump to address 0x00000000,
     # Essentially resets it.
     arduino.write("RESET".encode("ASCII"))
 
-    print(" !! Put your sliders to the BOTTOM position and press enter!")
-    _ = input()
-    arduino.write("READY".encode("ASCII"))
-    
-    print(" !! Put your sliders to the TOP position and press enter!")
-    _ = input()
-    arduino.write("READY".encode("ASCII"))
+    # Load config file
+    with open("config.json", "r") as f:
+        values = json.loads(f.readline())
 
     while True:
         line = arduino.readline().decode('utf-8', errors='ignore').strip()
@@ -81,15 +73,13 @@ def main():
             continue
 
         parts = line.split(',')
-        if len(parts) < 4:
+        if len(parts) < 2:
             print(f"[arduino] {line}")
             continue
         
         try:
             index = int(parts[0])
             value = int(parts[1])
-            bot   = int(parts[2])
-            top   = int(parts[3])
         except ValueError:
             # Print anything other than the constant stream of values
             print(f"[arduino] {line}")
@@ -98,7 +88,7 @@ def main():
         smoothed = ema(index, value)
         if last_values.get(index) is None or abs(smoothed - last_values[index]) >= DEADBAND:
             last_values[index] = smoothed
-            on_fader_change(index, smoothed, bot, top)
+            on_fader_change(index, smoothed, values[index][1], values[index][2])
 
 if __name__ == "__main__":
     try:
